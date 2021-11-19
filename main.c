@@ -39,9 +39,10 @@ int main()
         if (caractere == '\n')
             ligne++;
     }
+    ligne--;
     fseek(F, cpt, SEEK_SET);
 
-    struct individu ind[ligne - 1];
+    struct individu ind[ligne];
 
     int indice = 0;
     int info = 1;
