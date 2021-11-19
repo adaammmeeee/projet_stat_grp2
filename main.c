@@ -22,12 +22,6 @@ int main()
         exit(1);
     } 
 
-    struct stat sb;
-    if (stat("choixpeauMagique.csv", &sb) == -1)
-    {
-        perror("choixpeauMagique");
-        exit(EXIT_FAILURE);
-    }
     int caractere = 0;
     int ligne = 0;
     int cpt = 0;
@@ -43,13 +37,6 @@ int main()
     fseek(F, cpt, SEEK_SET);
 
     struct individu ind[ligne];
-
-    int indice = 0;
-    int info = 1;
-    int recule = 0;
-    int indice_individu = 0;
-    int parcours = 1;
-    int a;
     for (int i=0; i<ligne-1; i++)
     {
     fscanf(F, "%[^;];%d;%d;%d;%d;%[^;\n]", ind[i].nom, &ind[i].courage, &ind[i].loyaute, &ind[i].sagesse, &ind[i].malice, ind[i].maison);
