@@ -1,0 +1,9 @@
+make --dry-run --keep-going --print-directory
+make: Entering directory '/home/adame/projet_stat_grp2'
+ 
+gcc -o main main.c
+ 
+./main
+ 
+make: Leaving directory '/home/adame/projet_stat_grp2'
+ 
