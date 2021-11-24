@@ -12,7 +12,67 @@ struct individu
     int sagesse;
     int malice;
     char maison[20];
+    int rep_initial;
 };
+
+// -- PIKK EUP
+struct individu *pick_up()
+{
+    FILE *F = fopen("choixpeauMagique.csv", "r");
+    if (!F)
+    {
+        perror("fopen");
+        exit(1);
+    }
+
+    int caractere = 0;
+    int ligne = 0;
+    int cpt = 0;
+
+    while ((caractere = fgetc(F)) != EOF)
+    {
+        if (ligne == 0)
+            cpt++;
+        if (caractere == '\n')
+            ligne++;
+    }
+    fseek(F, cpt, SEEK_SET);
+
+    struct individu *ind = malloc(ligne * sizeof(struct individu));
+    for (int i = 0; i < ligne; i++)
+    {
+        fscanf(F, "%[^;];%d;%d;%d;%d;%[^;\n]", ind[i].nom, &ind[i].courage, &ind[i].loyaute, &ind[i].sagesse, &ind[i].malice, ind[i].maison);
+        ind[i].rep_initial = 0;
+    }
+    fclose(F);
+    return ind;
+}
+
+// -- REPRESENTATION INIIALE
+
+void representation_initiale(struct individu *ind, int k)
+{
+    int cpt = 1;
+    srand(time(NULL));
+    for (int i = 0; i < k; i++)
+    {
+        int alea = rand() % 50;
+        if (ind[alea].rep_initial == 0)
+        {
+            ind[alea].rep_initial = cpt;
+            cpt ++;
+        }
+        else
+        {
+            while (ind[alea].rep_initial != 0)
+            {
+                alea = rand() % 50;
+            }
+            ind[alea].rep_initial = cpt;
+            cpt ++;
+        }
+    }
+}
 
 // -- CALCUL ETENDU
 int calcul_etendu_sagesse(struct individu a[])
@@ -30,7 +90,7 @@ int calcul_etendu_sagesse(struct individu a[])
             min = a[i].sagesse;
         }
     }
-  
+
     return (max - min);
 }
 
@@ -78,8 +138,6 @@ int calcul_etendu_courage(struct individu *a)
     int min = 1000;
     for (int i = 0; i < 49; i++)
     {
-        //  printf("%d\n", a[i].courage);
-
         if (a[i].courage > max)
         {
             max = a[i].courage;
@@ -89,7 +147,6 @@ int calcul_etendu_courage(struct individu *a)
             min = a[i].courage;
         }
     }
-
 
     return (max - min);
 }
@@ -134,28 +191,29 @@ int calcul_distance_maison(struct individu a, struct individu b)
 
 float distance(struct individu a, struct individu b, struct individu ind[])
 {
-    float malice = calcul_distance_malice(a,b,calcul_etendu_malice(ind));
-    float loyaute = calcul_distance_loyaute(a,b,calcul_etendu_loyaute(ind));
-    float courage = calcul_distance_courage(a,b,calcul_etendu_courage(ind));
-    float sagesse = calcul_distance_sagesse(a,b,calcul_etendu_sagesse(ind));
-    float maison = (float)calcul_distance_maison(a,b);
-    return  (( malice + loyaute + courage + sagesse+ maison) / (5.0));
-
+    float malice = calcul_distance_malice(a, b, calcul_etendu_malice(ind));
+    float loyaute = calcul_distance_loyaute(a, b, calcul_etendu_loyaute(ind));
+    float courage = calcul_distance_courage(a, b, calcul_etendu_courage(ind));
+    float sagesse = calcul_distance_sagesse(a, b, calcul_etendu_sagesse(ind));
+    float maison = (float)calcul_distance_maison(a, b);
+    return ((malice + loyaute + courage + sagesse + maison) / (5.0));
 }
 
 // --- CALCUL MATRICE DISTANCE
 
-float** matrice_distance(struct individu ind[])
+float **matrice_distance(struct individu ind[])
 {
-    float** matrice =  malloc(50 * sizeof(*matrice));
+    float **matrice = malloc(50 * sizeof(*matrice));
     for (int k = 0; k < 50; k++)
-    { 
+    {
         matrice[k] = malloc(50 * sizeof(**matrice));
     }
 
-    for (int i = 0; i < 50; i++) {
-        for (int j = 0; j < 50; j++) {
-            matrice[i][j] = distance(ind[i],ind[j],ind);
+    for (int i = 0; i < 50; i++)
+    {
+        for (int j = 0; j < 50; j++)
+        {
+            matrice[i][j] = distance(ind[i], ind[j], ind);
         }
     }
     return matrice;
@@ -163,48 +221,29 @@ float** matrice_distance(struct individu ind[])
 
 int main()
 {
-    srand(time(NULL));
-    int graine = rand() % 50;
 
-    FILE *F = fopen("choixpeauMagique.csv", "r");
-    if (!F)
+    struct individu *ind = pick_up();
+
+    float **matrice = matrice_distance(ind);
+    for (int i = 0; i < 50; i++)
     {
-        perror("fopen");
-        exit(1);
+       printf("%d : %d\n",i, ind[i].rep_initial );
     }
 
-    int caractere = 0;
-    int ligne = 0;
-    int cpt = 0;
+    printf("--------------------------------------------------------\n");
 
-    while ((caractere = fgetc(F)) != EOF)
-    {
-        if (ligne == 0)
-            cpt++;
-        if (caractere == '\n')
-            ligne++;
-    }
-    fseek(F, cpt, SEEK_SET);
-    printf("%d\n", ligne);
+    representation_initiale(ind, 10);
 
-    struct individu ind[ligne];
-    for (int i = 0; i < ligne; i++)
+     for (int i = 0; i < 50; i++)
     {
-        fscanf(F, "%[^;];%d;%d;%d;%d;%[^;\n]", ind[i].nom, &ind[i].courage, &ind[i].loyaute, &ind[i].sagesse, &ind[i].malice, ind[i].maison);
+       printf("%d : %d\n",i, ind[i].rep_initial );
     }
 
-    fclose(F);
 
-    float** matrice = matrice_distance(ind)
-    printf("distance entre a et b :%f\n", matrice[0][45]);
-
-    for (int i = 0; i <50; i++) {
+    for (int i = 0; i < 50; i++)
+    {
         free(matrice[i]);
     }
     free(matrice);
-
-
-    //printf(" Malice %d \n", calcul_etendu_malice(ind));
-    //printf(" Sagesse %d \n", calcul_etendu_sagesse(ind));
-    //printf(" Loyaute %d \n", calcul_etendu_loyaute(ind));
+    free(ind);
 }
