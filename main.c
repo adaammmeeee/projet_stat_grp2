@@ -3,6 +3,8 @@
 #include <sys/stat.h>
 #include <string.h>
 #include <time.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 struct individu
 {
@@ -12,7 +14,19 @@ struct individu
     int sagesse;
     int malice;
     char maison[20];
-    int rep_initial;
+    int appartenance;
+};
+
+struct individurep
+{
+    char nom[20];
+    int courage;
+    int loyaute;
+    int sagesse;
+    int malice;
+    char maison[20];
+    int appartenance;
+    int indice;
 };
 
 // -- PIKK EUP
@@ -42,7 +56,7 @@ struct individu *pick_up()
     for (int i = 0; i < ligne; i++)
     {
         fscanf(F, "%[^;];%d;%d;%d;%d;%[^;\n]", ind[i].nom, &ind[i].courage, &ind[i].loyaute, &ind[i].sagesse, &ind[i].malice, ind[i].maison);
-        ind[i].rep_initial = 0;
+        ind[i].appartenance = 0;
     }
     fclose(F);
     return ind;
@@ -50,27 +64,69 @@ struct individu *pick_up()
 
 // -- REPRESENTATION INIIALE
 
-void representation_initiale(struct individu *ind, int k)
+struct individurep *representation_initiale(struct individu *ind, int k)
 {
+    struct individurep *ind_rep = malloc(k * sizeof(struct individurep));
+
     int cpt = 1;
-    srand(time(NULL));
+    srand(getpid());
     for (int i = 0; i < k; i++)
     {
         int alea = rand() % 50;
-        if (ind[alea].rep_initial == 0)
+        if (ind[alea].appartenance == 0)
         {
-            ind[alea].rep_initial = cpt;
-            cpt ++;
+            ind[alea].appartenance = cpt;
+
+            ind_rep[i].loyaute = ind[alea].loyaute;
+            ind_rep[i].sagesse = ind[alea].sagesse;
+            ind_rep[i].appartenance = ind[alea].appartenance;
+            ind_rep[i].indice = alea;
+            ind_rep[i].malice = ind[alea].malice;
+            strcpy(ind_rep[i].maison, ind[alea].maison);
+
+            cpt++;
         }
         else
         {
-            while (ind[alea].rep_initial != 0)
+            while (ind[alea].appartenance != 0)
             {
                 alea = rand() % 50;
             }
-            ind[alea].rep_initial = cpt;
-            cpt ++;
+            ind[alea].appartenance = cpt;
+
+            ind_rep[i].loyaute = ind[alea].loyaute;
+            ind_rep[i].sagesse = ind[alea].sagesse;
+            ind_rep[i].appartenance = ind[alea].appartenance;
+            ind_rep[i].indice = alea;
+            ind_rep[i].malice = ind[alea].malice;
+            strcpy(ind_rep[i].maison, ind[alea].maison);
+
+            cpt++;
         }
+    }
+
+    return ind_rep;
+}
+
+// -- ASSIGNATION AU PLUS PROCHE
+
+void assignation(struct individu *ind, struct individurep *ind_rep,  float **matrice_distance, int n, int k)
+{
+    float buffer = 10000000.0;
+    int indice = 0;
+    for (int i = 0; i < n; i++)
+    {
+        for (int j = 0; j < k; j++)
+        {
+            if (buffer > matrice_distance[i][ind_rep[j].indice])
+            {
+                buffer = matrice_distance[i][ind_rep[j].indice];
+                indice = j;
+            }
+
+        }
+        buffer = 10000000.0;
+        ind[i].appartenance = indice;
     }
 }
 
@@ -213,37 +269,99 @@ float **matrice_distance(struct individu ind[])
     {
         for (int j = 0; j < 50; j++)
         {
+            
             matrice[i][j] = distance(ind[i], ind[j], ind);
         }
     }
     return matrice;
 }
 
+// ----CALCUL DISTANCE Manhattan
+float distance_m(struct individu a, struct individu b)
+{
+
+    float r;
+    r = abs(b.courage - a.courage) + abs(b.loyaute - a.loyaute) + abs(b.malice - a.malice) + abs(b.sagesse - a.sagesse);
+
+    return r;
+}
+
+// --- CALCUL MATRICE DISTANCE Manhattan
+
+float **matrice_distance_m(struct individu ind[])
+{
+    float **matrice = malloc(50 * sizeof(*matrice));
+    for (int k = 0; k < 50; k++)
+    {
+        matrice[k] = malloc(50 * sizeof(**matrice));
+    }
+
+    for (int i = 0; i < 50; i++)
+    {
+        for (int j = 0; j < 50; j++)
+        {
+            if (i == j)
+            {
+                matrice[i][j] = 0;
+            }
+            else
+            {
+                matrice[i][j] = distance_m(ind[i], ind[j]);
+            }
+        }
+    }
+    return matrice;
+}
+
+// --- ASSIGNATION REPRESENTATIVE
+
 int main()
 {
 
     struct individu *ind = pick_up();
-
+    /*
     float **matrice = matrice_distance(ind);
     for (int i = 0; i < 50; i++)
     {
-       printf("%d : %d\n",i, ind[i].rep_initial );
+       printf("%d : %d\n",i, ind[i].appartenance);
+    }
+
+   
+*/
+
+    float **matrice = matrice_distance(ind);
+
+    printf("--------------------------------------------------------\n");
+
+    struct individurep *ind_rep = representation_initiale(ind, 10);
+
+    for (int i = 0; i < 50; i++)
+    {
+        printf("%d : %d\n", i, ind[i].appartenance);
     }
 
     printf("--------------------------------------------------------\n");
 
-    representation_initiale(ind, 10);
-
-     for (int i = 0; i < 50; i++)
+    for (int i = 0; i < 10; i++)
     {
-       printf("%d : %d\n",i, ind[i].rep_initial );
+        printf("numéro %d : indice :%d  cluster :%d \n", i, ind_rep[i].indice, ind_rep[i].appartenance);
     }
 
+    printf("--------------------------------------------------------\n");
+    
+    assignation(ind, ind_rep, matrice, 50, 10);
+    
+    for (int i = 0; i < 50; i++)
+    {
+        printf("%d : %d\n", i, ind[i].appartenance);
+    }
 
     for (int i = 0; i < 50; i++)
     {
         free(matrice[i]);
     }
+
     free(matrice);
     free(ind);
+    free(ind_rep);
 }
