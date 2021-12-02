@@ -79,7 +79,7 @@ struct individurep *representation_initiale(struct individu *ind, int k)
 
             ind_rep[i].loyaute = ind[alea].loyaute;
             ind_rep[i].sagesse = ind[alea].sagesse;
-            ind_rep[i].appartenance = ind[alea].appartenance;
+            ind_rep[i].appartenance = ind[alea].appartenance ;
             ind_rep[i].indice = alea;
             ind_rep[i].malice = ind[alea].malice;
             strcpy(ind_rep[i].maison, ind[alea].maison);
@@ -96,7 +96,7 @@ struct individurep *representation_initiale(struct individu *ind, int k)
 
             ind_rep[i].loyaute = ind[alea].loyaute;
             ind_rep[i].sagesse = ind[alea].sagesse;
-            ind_rep[i].appartenance = ind[alea].appartenance;
+            ind_rep[i].appartenance = ind[alea].appartenance ;
             ind_rep[i].indice = alea;
             ind_rep[i].malice = ind[alea].malice;
             strcpy(ind_rep[i].maison, ind[alea].maison);
@@ -126,8 +126,27 @@ void assignation(struct individu *ind, struct individurep *ind_rep,  float **mat
 
         }
         buffer = 10000000.0;
-        ind[i].appartenance = indice;
+        ind[i].appartenance = indice + 1;
     }
+}
+
+int calcul_cout(struct individu *ind, struct individurep *ind_rep, float ** matrice, int clusterk) {
+    int indice = 0;
+    for (int i = 0; i < 4; i++) {
+        if (ind_rep[i].appartenance == clusterk)
+            {
+                indice = ind_rep[i].indice;
+            }
+    }
+    int buffer = 0;
+    
+    for (int i = 0; i < 50; i++) {
+        if (ind[i].appartenance == clusterk) {
+            buffer += matrice[indice][i];
+        }
+    }
+
+
 }
 
 // -- CALCUL ETENDU
@@ -333,7 +352,7 @@ int main()
 
     printf("--------------------------------------------------------\n");
 
-    struct individurep *ind_rep = representation_initiale(ind, 10);
+    struct individurep *ind_rep = representation_initiale(ind, 4);
 
     for (int i = 0; i < 50; i++)
     {
@@ -342,14 +361,14 @@ int main()
 
     printf("--------------------------------------------------------\n");
 
-    for (int i = 0; i < 10; i++)
+    for (int i = 0; i < 4; i++)
     {
         printf("numéro %d : indice :%d  cluster :%d \n", i, ind_rep[i].indice, ind_rep[i].appartenance);
     }
 
     printf("--------------------------------------------------------\n");
     
-    assignation(ind, ind_rep, matrice, 50, 10);
+    assignation(ind, ind_rep, matrice, 50, 4);
     
     for (int i = 0; i < 50; i++)
     {
