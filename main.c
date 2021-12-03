@@ -15,6 +15,7 @@ struct individu
     int malice;
     char maison[20];
     int appartenance;
+    int representant;
 };
 
 struct individurep
@@ -29,7 +30,7 @@ struct individurep
     int indice;
 };
 
-// -- PIKK EUP
+// -- Initialisation de la struct à partir du fichier choixpeauMagique
 struct individu *pick_up()
 {
     FILE *F = fopen("choixpeauMagique.csv", "r");
@@ -57,13 +58,13 @@ struct individu *pick_up()
     {
         fscanf(F, "%[^;];%d;%d;%d;%d;%[^;\n]", ind[i].nom, &ind[i].courage, &ind[i].loyaute, &ind[i].sagesse, &ind[i].malice, ind[i].maison);
         ind[i].appartenance = 0;
+        ind[i].representant = 0;
     }
     fclose(F);
     return ind;
 }
 
-// -- REPRESENTATION INIIALE
-
+// -- Initalisation des représentant de chaque cluster, ils sont choisis aléatoirement
 struct individurep *representation_initiale(struct individu *ind, int k)
 {
     struct individurep *ind_rep = malloc(k * sizeof(struct individurep));
@@ -73,9 +74,10 @@ struct individurep *representation_initiale(struct individu *ind, int k)
     for (int i = 0; i < k; i++)
     {
         int alea = rand() % 50;
-        if (ind[alea].appartenance == 0)
+        if (ind[alea].representant == 0)
         {
             ind[alea].appartenance = cpt;
+            ind[alea].representant = 1;
 
             ind_rep[i].loyaute = ind[alea].loyaute;
             ind_rep[i].sagesse = ind[alea].sagesse;
@@ -88,15 +90,16 @@ struct individurep *representation_initiale(struct individu *ind, int k)
         }
         else
         {
-            while (ind[alea].appartenance != 0)
+            while (ind[alea].representant != 0)
             {
                 alea = rand() % 50;
             }
             ind[alea].appartenance = cpt;
-
+            ind[alea].representant = 1;
             ind_rep[i].loyaute = ind[alea].loyaute;
             ind_rep[i].sagesse = ind[alea].sagesse;
             ind_rep[i].appartenance = ind[alea].appartenance;
+
             ind_rep[i].indice = alea;
             ind_rep[i].malice = ind[alea].malice;
             strcpy(ind_rep[i].maison, ind[alea].maison);
@@ -110,46 +113,49 @@ struct individurep *representation_initiale(struct individu *ind, int k)
 
 // -- ASSIGNATION AU PLUS PROCHE
 
-void assignation(struct individu *ind, struct individurep *ind_rep, float **matrice_distance, int n, int k)
+void assignation(struct individu *ind, struct individurep *ind_rep, float **matrice_distance, int nb_individu, int nb_cluster)
 {
     float buffer = 10000000.0;
-    int indice = 0;
-    for (int i = 0; i < n; i++)
+    for (int i = 0; i < nb_individu; i++)
     {
-        for (int j = 0; j < k; j++)
+        int cluster = 0;
+        for (int j = 0; j < nb_cluster; j++)
         {
+
             if (buffer > matrice_distance[i][ind_rep[j].indice])
             {
+                // On garde la meilleure valeur
                 buffer = matrice_distance[i][ind_rep[j].indice];
-                indice = j;
+                // On garde la valeur du meilleur cluster
+                cluster = ind_rep[j].appartenance;
             }
         }
-        buffer = 10000000.0;
-        ind[i].appartenance = indice + 1;
+        buffer = 10000000.0;           // On change d'individu, on réinitialise le cluster
+        ind[i].appartenance = cluster; // On assigne l'appartenance d'un individu au meilleur cluster
     }
 }
 
-float calcul_cout(struct individu *ind, struct individurep *ind_rep, float **matrice, int clusterk, int nbcluster)
+float calcul_cout_cluster_k(struct individu *ind, struct individurep ind_rep, float **matrice)
 {
-    int indice = 0;
-    for (int i = 0; i < nbcluster; i++)
-    {
-        // On selectionne l'individu representatif sur lequel on va travailler
-        if (ind_rep[i].appartenance == clusterk)
-        {
-            indice = ind_rep[i].indice;
-        }
-    }
     float buffer = 0;
-
     for (int i = 0; i < 50; i++)
     {
-        if ((ind[i].appartenance == clusterk) && (i!=indice))
+        if (ind[i].appartenance == ind_rep.appartenance)
         {
-            buffer += matrice[indice][i];
+            buffer += matrice[ind_rep.indice][i];
         }
     }
 
+    return buffer;
+}
+
+float calcul_cout(struct individu *ind, struct individurep *ind_rep, float **matrice, int nbcluster)
+{
+    float buffer = 0.0;
+    for (int i = 0; i < nbcluster; i++)
+    {
+        buffer += calcul_cout_cluster_k(ind, ind_rep[i], matrice);
+    }
     return buffer;
 }
 
@@ -215,7 +221,7 @@ int calcul_etendu_courage(struct individu *a)
 {
     int max = 0;
     int min = 1000;
-    for (int i = 0; i < 49; i++)
+    for (int i = 0; i < 50; i++)
     {
         if (a[i].courage > max)
         {
@@ -340,58 +346,84 @@ float **matrice_distance_m(struct individu ind[])
 
 int echange(struct individu *ind, struct individurep *ind_rep, float **matrice, int nbcluster)
 {
-
-    for (int j = 0; j < nbcluster; j++)
+    // Pour chaque cluster
+    for (int i = 0; i < nbcluster; i++)
     {
-        float gain_cout = 1000.0;
-        struct individurep initial = ind_rep[j];
-        struct individu newindividu = ind[ind_rep[j].indice];
-        int indice = ind_rep[j].indice;
-        float E = calcul_cout(ind, ind_rep, matrice, ind_rep[j].appartenance, nbcluster);
-
-        for (int i = 0; i < 50; i++)
+        int cluster = 0;
+        int gaint_cout = 0;
+        int indice_new_representant = -40;
+        // E est le cout actuel du partitionnement
+        float E = calcul_cout_cluster_k(ind, ind_rep[i], matrice);
+        // Gain est un booléen, il vaut 0 ou 1 en fonction de si une meilleure valeur a été trouvé.
+        int gain = 0;
+        // pour chaque individu
+        for (int j = 0; j < 50; j++)
         {
-            if ((ind_rep[j].appartenance == ind[i].appartenance) && (ind_rep[j].indice != i))
+            // non représentant 
+            if (ind[j].representant == 0)
             {
-                
-                struct individu buffer = ind[i];
-
-                // echange temporaire
-                ind_rep[j].loyaute = buffer.loyaute;
-                ind_rep[j].sagesse = buffer.sagesse;
-                ind_rep[j].appartenance = buffer.appartenance;
-                ind_rep[j].courage = buffer.courage;
-                ind_rep[j].malice = buffer.malice;
-                ind_rep[j].indice = i;
-                strcpy(ind_rep[j].maison, buffer.maison);
-                strcpy(ind_rep[j].nom, buffer.nom);
-
-                // calcul du cout temporaire
-                float S = calcul_cout(ind, ind_rep, matrice, ind_rep[j].appartenance, nbcluster);
-
-                ind_rep[j] = initial;
-                // si le cout est validé
-                if (S < E)
+                // On remplace temporairement l'individu représentant du cluster i par l'individu j
+                int stock = ind_rep[i].indice;
+                ind_rep[i].indice = j;
+                // Cout du partitionnement si l'individu j devient le cluster i
+                float S = calcul_cout_cluster_k(ind, ind_rep[i], matrice);
+                // On réassigne l'individu représentant comme au début
+                ind_rep[i].indice = stock;
+                if (S<E)
                 {
+                    gain = 1;
                     E = S;
-                    // on enregistre l'individu dans newindividu
-                    newindividu = ind[i];
-                    indice = i;
+                    struct individu new_representant = ind[j];
+                    struct individurep old_representant = ind_rep[i];
+                    indice_new_representant = j;
+                    cluster = old_representant.appartenance;
+                    printf("nouveau représenant \n");
                 }
             }
         }
+        // On a traité tout les individus, on peut maintenant procéder à l'échange
 
-        // Vrai echange
-        ind_rep[j].loyaute = newindividu.loyaute;
-        ind_rep[j].sagesse = newindividu.sagesse;
-        ind_rep[j].appartenance = newindividu.appartenance;
-        ind_rep[j].courage = newindividu.courage;
-        ind_rep[j].malice = newindividu.malice;
-        ind_rep[j].indice = indice;
-        strcpy(ind_rep[j].maison, newindividu.maison);
-        strcpy(ind_rep[j].nom, newindividu.nom);       
+        // L'échange s'effectue uniquement dans le cas où on a gagné du coût
+        if (gain)
+        {
+            // le représentant i n'est plus représentant
+            ind[ind_rep[i].indice].representant = 0;
+            // Le nouvel indice du représentant est changé par l'individu qui réduit le coût
+            ind_rep[i].indice = indice_new_representant;
+            // On assigne notre nouvel individu en tant que représentant
+            ind[indice_new_representant].representant = 1;
+            ind[indice_new_representant].appartenance = cluster;
+        }
     }
+    // On réassigne avec nos nouveaux représentants (ou pas nouveaux si fin d'algo)
     assignation(ind, ind_rep, matrice, 50, nbcluster);
+    return 0;
+}
+
+void test_representation(struct individu *ind)
+{
+    int cpt = 0;
+    printf("--------------------------------------------------------\n");
+    for (int i = 0; i < 50; i++)
+    {
+        printf("Individu %3d  représentant : %d \n", i, ind[i].appartenance);
+        if (ind[i].appartenance != 0)
+        {
+            cpt++;
+        }
+    }
+    printf("On a donc %2d individus représentatif au début \n", cpt);
+    printf("--------------------------------------------------------\n");
+}
+
+void test_representation_graine(struct individurep *ind_rep, int nbcluster)
+{
+    printf("--------------------------------------------------------\n");
+    for (int i = 0; i < nbcluster; i++)
+    {
+        printf("Graine %3d  représentant : %d indice : %d \n", i, ind_rep[i].appartenance, ind_rep[i].indice);
+    }
+    printf("--------------------------------------------------------\n");
 }
 
 int main()
@@ -399,53 +431,31 @@ int main()
     int n = 4;
     struct individu *ind = pick_up();
 
-    float **matrice = matrice_distance_m(ind);
-    struct individurep *ind_rep = representation_initiale(ind, n);
+    float **matrice = matrice_distance_m(ind);                     // OK
+    struct individurep *ind_rep = representation_initiale(ind, n); // OK
+    assignation(ind, ind_rep, matrice, 50, n);                     // OK
+    float cout_total = calcul_cout(ind, ind_rep, matrice, n);
+    printf("Voici le cout total : %f\n", cout_total);
 
-    assignation(ind, ind_rep, matrice, 50, n);
-
-    printf("--------------------------------------------------------\n");
-
-    float buffer = 0;
-    for (int i = 1; i <= n; i++)
-    {
-        buffer += calcul_cout(ind, ind_rep, matrice, i, n);
-    }
-    printf("distance départ : %f \n", buffer);
-    printf("--------------------------------------------------------\n");
-    
-
-    buffer = 0;
+    float cout_total_ancien = 0.0;
     int cpt = 0;
-    float buff2 = 0.0;
-    while (cpt <= 1)
-    {
-        buff2 = buffer;
-        buffer = 0;
-        echange(ind, ind_rep, matrice, n);
-        for (int i = 1; i <= n; i++)
-        {
-            buffer += calcul_cout(ind, ind_rep, matrice, i, n);
-        }
-        printf("buffer %f \n", buffer);
-        printf("buff2  %f \n", buff2);
+    test_representation_graine(ind_rep, n);
 
-        if (buff2 == buffer)
+    while (cpt < 5)
+    {
+        cout_total_ancien = cout_total;
+        echange(ind, ind_rep, matrice, n);
+        printf("Echange !\n");
+        cout_total = calcul_cout(ind, ind_rep, matrice, n);
+        if (cout_total_ancien == cout_total)
         {
             cpt++;
         }
-        else
-        {
-            cpt = 0;
-        }
     }
+    cout_total = calcul_cout(ind, ind_rep, matrice, n);
+    printf("Voici le cout total : %f\n", cout_total);
 
-    printf("AATTEENHTINO ECHESANGE ECHANGE ATTENTION \n");
-
-    printf("--------------------------------------------------------\n");
-
-    printf("distance total : %f \n", buffer);
-    printf("--------------------------------------------------------\n");
+    test_representation_graine(ind_rep, n);
 
     for (int i = 0; i < 50; i++)
     {
