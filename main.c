@@ -134,6 +134,7 @@ float calcul_cout(struct individu *ind, struct individurep *ind_rep, float **mat
     int indice = 0;
     for (int i = 0; i < nbcluster; i++)
     {
+        // On selectionne l'individu representatif sur lequel on va travailler
         if (ind_rep[i].appartenance == clusterk)
         {
             indice = ind_rep[i].indice;
@@ -143,7 +144,7 @@ float calcul_cout(struct individu *ind, struct individurep *ind_rep, float **mat
 
     for (int i = 0; i < 50; i++)
     {
-        if (ind[i].appartenance == clusterk)
+        if ((ind[i].appartenance == clusterk) && (i!=indice))
         {
             buffer += matrice[indice][i];
         }
@@ -339,17 +340,23 @@ float **matrice_distance_m(struct individu ind[])
 
 int echange(struct individu *ind, struct individurep *ind_rep, float **matrice, int nbcluster)
 {
-    struct individu bufferfinal = ind[0];
-    int indice = 0;
+
     for (int j = 0; j < nbcluster; j++)
     {
+        float gain_cout = 1000.0;
+        struct individurep initial = ind_rep[j];
+        struct individu newindividu = ind[ind_rep[j].indice];
+        int indice = ind_rep[j].indice;
+        float E = calcul_cout(ind, ind_rep, matrice, ind_rep[j].appartenance, nbcluster);
+
         for (int i = 0; i < 50; i++)
         {
-            if (ind_rep[j].appartenance == j && ind[i].appartenance == j && ind_rep[j].indice != i)
+            if ((ind_rep[j].appartenance == ind[i].appartenance) && (ind_rep[j].indice != i))
             {
-                float E = calcul_cout(ind, ind_rep, matrice, ind_rep[j].appartenance, nbcluster);
+                
                 struct individu buffer = ind[i];
-                struct individurep initial = ind_rep[j];
+
+                // echange temporaire
                 ind_rep[j].loyaute = buffer.loyaute;
                 ind_rep[j].sagesse = buffer.sagesse;
                 ind_rep[j].appartenance = buffer.appartenance;
@@ -358,43 +365,39 @@ int echange(struct individu *ind, struct individurep *ind_rep, float **matrice, 
                 ind_rep[j].indice = i;
                 strcpy(ind_rep[j].maison, buffer.maison);
                 strcpy(ind_rep[j].nom, buffer.nom);
-                assignation(ind, ind_rep, matrice, 50, nbcluster);
+
+                // calcul du cout temporaire
                 float S = calcul_cout(ind, ind_rep, matrice, ind_rep[j].appartenance, nbcluster);
-                if (S > E)
+
+                ind_rep[j] = initial;
+                // si le cout est validé
+                if (S < E)
                 {
-                    bufferfinal = ind[i];
+                    E = S;
+                    // on enregistre l'individu dans newindividu
+                    newindividu = ind[i];
                     indice = i;
                 }
-                ind_rep[j] = initial;
-                assignation(ind, ind_rep, matrice, 50, nbcluster);
             }
         }
-        /*
-        ind_rep[j].loyaute = bufferfinal.loyaute;
-        ind_rep[j].sagesse = bufferfinal.sagesse;
-        ind_rep[j].appartenance = bufferfinal.appartenance;
-        ind_rep[j].courage = bufferfinal.courage;
-        ind_rep[j].malice = bufferfinal.malice;
+
+        // Vrai echange
+        ind_rep[j].loyaute = newindividu.loyaute;
+        ind_rep[j].sagesse = newindividu.sagesse;
+        ind_rep[j].appartenance = newindividu.appartenance;
+        ind_rep[j].courage = newindividu.courage;
+        ind_rep[j].malice = newindividu.malice;
         ind_rep[j].indice = indice;
-        strcpy(ind_rep[j].maison, bufferfinal.maison);
-        strcpy(ind_rep[j].nom, bufferfinal.nom);
-        */
+        strcpy(ind_rep[j].maison, newindividu.maison);
+        strcpy(ind_rep[j].nom, newindividu.nom);       
     }
+    assignation(ind, ind_rep, matrice, 50, nbcluster);
 }
 
 int main()
 {
     int n = 4;
     struct individu *ind = pick_up();
-    /*
-    float **matrice = matrice_distance(ind);
-    for (int i = 0; i < 50; i++)
-    {
-       printf("%d : %d\n",i, ind[i].appartenance);
-    }
-
-   
-*/
 
     float **matrice = matrice_distance_m(ind);
     struct individurep *ind_rep = representation_initiale(ind, n);
@@ -403,25 +406,45 @@ int main()
 
     printf("--------------------------------------------------------\n");
 
-    printf("distance total pour le culster 1 : %f \n", calcul_cout(ind, ind_rep, matrice, 1, 4));
-    printf("distance total pour le culster 2 : %f \n", calcul_cout(ind, ind_rep, matrice, 2, 4));
-    printf("distance total pour le culster 3 : %f \n", calcul_cout(ind, ind_rep, matrice, 3, 4));
-    printf("distance total pour le culster 4 : %f \n", calcul_cout(ind, ind_rep, matrice, 4, 4));
-    printf("distance total : %f ", calcul_cout(ind, ind_rep, matrice, 1, 4) + calcul_cout(ind, ind_rep, matrice, 2, 4) + calcul_cout(ind, ind_rep, matrice, 3, 4) + calcul_cout(ind, ind_rep, matrice, 4, 4));
-
+    float buffer = 0;
+    for (int i = 1; i <= n; i++)
+    {
+        buffer += calcul_cout(ind, ind_rep, matrice, i, n);
+    }
+    printf("distance départ : %f \n", buffer);
     printf("--------------------------------------------------------\n");
-    printf("--------------------------------------------------------\n");
+    
 
-    echange(ind, ind_rep, matrice, n);
+    buffer = 0;
+    int cpt = 0;
+    float buff2 = 0.0;
+    while (cpt <= 1)
+    {
+        buff2 = buffer;
+        buffer = 0;
+        echange(ind, ind_rep, matrice, n);
+        for (int i = 1; i <= n; i++)
+        {
+            buffer += calcul_cout(ind, ind_rep, matrice, i, n);
+        }
+        printf("buffer %f \n", buffer);
+        printf("buff2  %f \n", buff2);
+
+        if (buff2 == buffer)
+        {
+            cpt++;
+        }
+        else
+        {
+            cpt = 0;
+        }
+    }
 
     printf("AATTEENHTINO ECHESANGE ECHANGE ATTENTION \n");
 
-    printf("distance total pour le culster 1 : %f \n", calcul_cout(ind, ind_rep, matrice, 1, 4));
-    printf("distance total pour le culster 2 : %f \n", calcul_cout(ind, ind_rep, matrice, 2, 4));
-    printf("distance total pour le culster 3 : %f \n", calcul_cout(ind, ind_rep, matrice, 3, 4));
-    printf("distance total pour le culster 4 : %f \n", calcul_cout(ind, ind_rep, matrice, 4, 4));
-    printf("distance total : %f ", calcul_cout(ind, ind_rep, matrice, 1, 4) + calcul_cout(ind, ind_rep, matrice, 2, 4) + calcul_cout(ind, ind_rep, matrice, 3, 4) + calcul_cout(ind, ind_rep, matrice, 4, 4));
     printf("--------------------------------------------------------\n");
+
+    printf("distance total : %f \n", buffer);
     printf("--------------------------------------------------------\n");
 
     for (int i = 0; i < 50; i++)
