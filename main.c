@@ -351,15 +351,15 @@ int echange(struct individu *ind, struct individurep *ind_rep, float **matrice, 
     int gain_cout = 0;
     struct individurep old_representant;
     struct individu new_representant;
-    int indice_new_representant = -40;
-    int indice_old_representant = -40;
+    int indice_new_representant = 0;
+    int indice_old_representant = 0;
+    int cluster = 0;
     //pour chaque cluster
     for (int i = 0; i < nbcluster; i++)
     {
-        int cluster = 0;
-        indice_new_representant = -40;
+        cluster = 0;
         // E est le cout actuel du partitionnement
-        float E = calcul_cout_cluster_k(ind, ind_rep[i], matrice);
+        float E = calcul_cout(ind, ind_rep, matrice, nbcluster);
 
         // pour chaque individu
         for (int j = 0; j < 50; j++)
@@ -371,11 +371,12 @@ int echange(struct individu *ind, struct individurep *ind_rep, float **matrice, 
                 int copy = ind_rep[i].indice;
                 ind_rep[i].indice = j;
                 // Cout du partitionnement si l'individu j devient le représentant du cluster i
-                float S = calcul_cout_cluster_k(ind, ind_rep[i], matrice);
+                float S = calcul_cout(ind, ind_rep, matrice, nbcluster);
                 // On réassigne l'individu représentant comme au début
                 ind_rep[i].indice = copy;
                 if (E - S > gain_cout)
                 {
+                    printf("Cout du clusters: %f \n",S);
                     gain = 1;
                     gain_cout = E - S;
                     new_representant = ind[j];
@@ -391,10 +392,17 @@ int echange(struct individu *ind, struct individurep *ind_rep, float **matrice, 
     // On a traité tout les individus et tous les clusters, on peut maintenant procéder à l'échange
     if (gain)
     {
+        
         // Le représentant n'est plus
         ind[old_representant.indice].representant = 0;
+        // On assigne le nouveau représentant
+        //printf("Indice de l'ancien représentant : %d\n", ind_rep[indice_old_representant].indice );
+        //printf("Indice du nouveau  représentant : %d\n",  indice_new_representant);
         ind_rep[indice_old_representant].indice = indice_new_representant;
+        ind[indice_new_representant].representant = 1; 
     }
+    assignation(ind, ind_rep, matrice, 50,nbcluster);
+    printf("FIN ECHANGE\n");
     // On réassigne avec notre nouveau représentant (ou pas nouveaux si fin d'algo)
     return 0;
 }
@@ -438,25 +446,20 @@ int main()
 
     float cout_total_ancien = 0.0;
     int cpt = 0;
-    //test_representation_graine(ind_rep, n);
-    //test_representation(ind);
-
-    while (cpt < 5)
-    {
-        cout_total_ancien = cout_total;
-        echange(ind, ind_rep, matrice, n);
-        //printf("Echange !\n");
-        cout_total = calcul_cout(ind, ind_rep, matrice, n);
-        if (cout_total_ancien == cout_total)
-        {
-            cpt++;
-        }
-    }
     cout_total = calcul_cout(ind, ind_rep, matrice, n);
-    printf("Voici le cout total : %f\n", cout_total);
 
-    test_representation_graine(ind_rep, n);
-    test_representation(ind);
+    while(cpt < 8) {
+        //test_representation_graine(ind_rep, n);
+        //test_representation(ind);
+        echange(ind,ind_rep, matrice, n);
+        cpt ++;
+
+    }
+    //test_representation_graine(ind_rep,n);
+    printf("--------------------------------\n");
+    printf("Cout initial     : %f\n", cout_total);
+    printf("===>\n");
+    printf("Cout total final : %f \n", calcul_cout(ind, ind_rep, matrice, n));
 
     for (int i = 0; i < 50; i++)
     {
